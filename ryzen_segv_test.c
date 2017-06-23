@@ -6,6 +6,7 @@
 #include <stdatomic.h>
 #include <pthread.h>
 #include <sys/mman.h>
+#include <cpuid.h>
 
 #define FUNC_BYTES (256-5)
 
@@ -95,10 +96,12 @@ void thread1(int64_t *loops)
 {
 	int64_t i;
 	uint32_t ret1, ret2, t1, t2, should;
+	unsigned int cpuidregs[4];
 	func_t pf;
 
 	for(i=0; i < *loops || (*loops < 0); i++) {
 		lock_enter();
+		__get_cpuid(0, &cpuidregs[0], &cpuidregs[1], &cpuidregs[2], &cpuidregs[3]); // Serializing instruction for cache coherency
 		ret1 = func_set->ret;
 		pf = (func_t)(&func_set->func[ func_set->offset ]);
 		ret2 = pf(func_set);
