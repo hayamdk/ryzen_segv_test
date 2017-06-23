@@ -5,6 +5,7 @@
 #include <time.h>
 #include <stdatomic.h>
 #include <pthread.h>
+#include <sys/mman.h>
 
 #define FUNC_BYTES (256-5)
 
@@ -22,7 +23,8 @@ typedef struct {
 
 typedef uint32_t (*func_t)(func_set_t*, ...);
 
-func_set_t func_set;
+//func_set_t func_set;
+func_set_t *func_set;
 atomic_int flg;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -97,9 +99,9 @@ void thread1(int64_t *loops)
 
 	for(i=0; i < *loops || (*loops < 0); i++) {
 		lock_enter();
-		ret1 = func_set.ret;
-		pf = (func_t)(&func_set.func[ func_set.offset ]);
-		ret2 = pf(&func_set);
+		ret1 = func_set->ret;
+		pf = (func_t)(&func_set->func[ func_set->offset ]);
+		ret2 = pf(func_set);
 		lock_leave();
 
 		t1 = ret1, t2 = 12345;
@@ -131,10 +133,10 @@ void thread2(int x)
 		offset = random() % 256;
 		randval = random();
 		lock_enter();
-		memset(&func_set, 0, sizeof(func_set_t));
-		memcpy(&func_set.func[offset], func_base, FUNC_BYTES);
-		func_set.offset = offset;
-		func_set.ret = randval;
+		memset(func_set, 0, sizeof(func_set_t));
+		memcpy(&func_set->func[offset], func_base, FUNC_BYTES);
+		func_set->offset = offset;
+		func_set->ret = randval;
 		lock_leave();
 	}
 }
@@ -150,12 +152,14 @@ int main(int argc, const char *argv[])
 		loops = -1;
 	}
 
+	func_set = mmap (NULL, sizeof(func_set_t), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
 	atomic_store(&flg, 1);
 	srandom(time(NULL));
-	func_set.offset = random() % 256;
-	func_set.ret = random();
-	memcpy(&func_set.func[func_set.offset], func_base, FUNC_BYTES);
-	memset(&func_set.dummy, 0x00, 64);
+	func_set->offset = random() % 256;
+	func_set->ret = random();
+	memcpy(&func_set->func[func_set->offset], func_base, FUNC_BYTES);
+	memset(&func_set->dummy, 0x00, 64);
 	pthread_create(&t1, NULL, (void*)thread1, &loops);
 	pthread_create(&t2, NULL, (void*)thread2, NULL);
 	pthread_join(t1, NULL);

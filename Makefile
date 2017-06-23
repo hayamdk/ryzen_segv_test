@@ -6,7 +6,6 @@ OBJS = $(SRCS:.c=.o)
 
 $(PROGRAM): $(OBJS)
 	$(CC) -pthread -o $(PROGRAM) $(OBJS)
-	execstack -s $(PROGRAM)
 
 #SUFFIXES: .o .c
 .c.o:
