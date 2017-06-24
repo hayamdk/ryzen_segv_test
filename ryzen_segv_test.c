@@ -6,7 +6,6 @@
 #include <stdatomic.h>
 #include <pthread.h>
 #include <sys/mman.h>
-#include <cpuid.h>
 
 #define FUNC_BYTES (256-5)
 
@@ -41,6 +40,16 @@ static void lock_enter()
 static void lock_leave()
 {
 	while( pthread_mutex_unlock(&mutex) ) { }
+}
+
+static void serialize()
+{
+	//asm volatile("mfence":::"memory");
+	
+	unsigned int t[4];
+	asm volatile ("cpuid"
+			:"=a"(t[0]), "=b"(t[1]), "=c"(t[2]), "=d"(t[3])
+			: "0" (0) );
 }
 
 /*
@@ -96,12 +105,11 @@ void thread1(int64_t *loops)
 {
 	int64_t i;
 	uint32_t ret1, ret2, t1, t2, should;
-	unsigned int cpuidregs[4];
 	func_t pf;
 
 	for(i=0; i < *loops || (*loops < 0); i++) {
 		lock_enter();
-		__get_cpuid(0, &cpuidregs[0], &cpuidregs[1], &cpuidregs[2], &cpuidregs[3]); // Serializing instruction for cache coherency
+		serialize();
 		ret1 = func_set->ret;
 		pf = (func_t)(&func_set->func[ func_set->offset ]);
 		ret2 = pf(func_set);
