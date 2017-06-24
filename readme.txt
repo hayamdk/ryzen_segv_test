@@ -1,3 +1,8 @@
+**** !!!! Warning !!!! *****
+**** Currently, this dosen't cause SEGV in RYZEN no longer ****
+
+
+
 About:
 This is a test code to reproduce SEGV of RYZEN processor.
 
