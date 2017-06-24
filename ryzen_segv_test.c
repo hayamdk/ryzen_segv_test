@@ -26,7 +26,7 @@ typedef uint32_t (*func_t)(func_set_t*, ...);
 //func_set_t func_set;
 func_set_t *func_set;
 atomic_int flg;
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+atomic_int locked;
 
 typedef int (*printf_ptr_t)(const char *fmt, ...);
 typedef int (*enter_func_t)(uint32_t);
@@ -34,12 +34,16 @@ typedef void (*leave_func_t)(int);
 
 static void lock_enter()
 {
-	while( pthread_mutex_lock(&mutex) ) { }
+	while( atomic_exchange(&locked,1) ) { }
 }
 
 static void lock_leave()
 {
-	while( pthread_mutex_unlock(&mutex) ) { }
+	int ret = atomic_exchange(&locked,0);
+	if(!ret) {
+		/* should never happed */
+		fprintf(stderr, "lock inconsistency!!\n");
+	}
 }
 
 static void serialize()
@@ -166,6 +170,7 @@ int main(int argc, const char *argv[])
 	func_set = mmap (NULL, sizeof(func_set_t), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
 	atomic_store(&flg, 1);
+	atomic_store(&locked, 0);
 	srandom(time(NULL));
 	func_set->offset = random() % 256;
 	func_set->ret = random();
