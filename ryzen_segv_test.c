@@ -180,7 +180,8 @@ void thread2(int x)
 	}
 }
 
-#define MAX_CPUS 16
+int N_CPUS = 16;
+//#define N_CPUS 16
 
 int main(int argc, const char *argv[])
 {
@@ -196,6 +197,8 @@ int main(int argc, const char *argv[])
 		loops = -1;
 	}
 
+	N_CPUS = sysconf(_SC_NPROCESSORS_ONLN);
+
 	func_set = mmap (NULL, sizeof(func_set_t), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
 	atomic_store(&flg, 1);
@@ -210,7 +213,7 @@ int main(int argc, const char *argv[])
 	pthread_create(&t1, NULL, (void*)thread1, &loops);
 	pthread_create(&t2, NULL, (void*)thread2, NULL);
 	
-	cpu = random() % MAX_CPUS;
+	cpu = random() % N_CPUS;
 	CPU_ZERO(&cpuset);
 	CPU_SET(cpu, &cpuset);
 	sched_setaffinity(pid, sizeof(cpu_set_t), &cpuset);
