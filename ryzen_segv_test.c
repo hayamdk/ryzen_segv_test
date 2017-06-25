@@ -60,10 +60,13 @@ static void lock_leave()
 	}
 }
 
+static void mfence()
+{
+	asm volatile("mfence":::"memory");
+}
+
 static void serialize()
 {
-	//asm volatile("mfence":::"memory");
-	
 	unsigned int t[4];
 	asm volatile ("cpuid"
 			:"=a"(t[0]), "=b"(t[1]), "=c"(t[2]), "=d"(t[3])
@@ -172,6 +175,7 @@ void thread2(int x)
 		memcpy(&func_set->func[offset], func_base, FUNC_BYTES);
 		func_set->offset = offset;
 		func_set->ret = randval;
+		mfence(); // Assure that modified code is stored
 		lock_leave();
 	}
 }
@@ -184,7 +188,7 @@ int main(int argc, const char *argv[])
 	int64_t loops;
 	cpu_set_t cpuset;
 	int cpu;
-	int pid = (int)getpid();
+	pid_t pid = getpid();
 	
 	if(argc > 1) {
 		loops = atoll(argv[1]);
@@ -202,15 +206,16 @@ int main(int argc, const char *argv[])
 	func_set->ret = random();
 	memcpy(&func_set->func[func_set->offset], func_base, FUNC_BYTES);
 	memset(&func_set->dummy, 0x00, 64);
+	mfence(); // Assure that modified code is stored
 	pthread_create(&t1, NULL, (void*)thread1, &loops);
 	pthread_create(&t2, NULL, (void*)thread2, NULL);
 	
 	cpu = random() % MAX_CPUS;
 	CPU_ZERO(&cpuset);
 	CPU_SET(cpu, &cpuset);
-	sched_setaffinity((pid_t)pid, sizeof(cpu_set_t), &cpuset);
+	sched_setaffinity(pid, sizeof(cpu_set_t), &cpuset);
 	
-	fprintf(stderr, "PID:%d CPU:%d\n", pid, cpu);
+	fprintf(stderr, "PID:%d CPU:%d\n", (int)pid, cpu);
 	
 	pthread_join(t1, NULL);
 	pthread_join(t2, NULL);
