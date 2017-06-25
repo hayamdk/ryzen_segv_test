@@ -160,17 +160,25 @@ void thread1(int64_t *loops)
 	atomic_store(&flg, 0);
 }
 
-void thread2(int x)
+void threadx(void *p)
 {
 	uint8_t offset;
 	uint32_t randval;
+	int init = 0;
+	if(p != NULL) {
+		init = 1;
+	}
 	
 	//usleep(1000);
 
 	while(atomic_load(&flg)) {
 		offset = random() % 256;
 		randval = random();
-		lock_enter();
+		if(!init) {
+			lock_enter();
+		} else {
+			init = 0;
+		}
 		memset(func_set, 0, sizeof(func_set_t));
 		memcpy(&func_set->func[offset], func_base, FUNC_BYTES);
 		func_set->offset = offset;
@@ -180,12 +188,11 @@ void thread2(int x)
 	}
 }
 
-int N_CPUS = 16;
-//#define N_CPUS 16
+int n_cpus = 16;
 
 int main(int argc, const char *argv[])
 {
-	pthread_t t1, t2;
+	pthread_t t1, t2, t3;
 	int64_t loops;
 	cpu_set_t cpuset;
 	int cpu;
@@ -196,32 +203,29 @@ int main(int argc, const char *argv[])
 	} else {
 		loops = -1;
 	}
-
-	N_CPUS = sysconf(_SC_NPROCESSORS_ONLN);
+	
+	n_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
 	func_set = mmap (NULL, sizeof(func_set_t), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
 	atomic_store(&flg, 1);
-	atomic_store(&locked, 0);
+	atomic_store(&locked, 1);
 	
 	srandom(time(NULL) + pid);
-	func_set->offset = random() % 256;
-	func_set->ret = random();
-	memcpy(&func_set->func[func_set->offset], func_base, FUNC_BYTES);
-	memset(&func_set->dummy, 0x00, 64);
 	mfence(); // Assure that modified code is stored
 	pthread_create(&t1, NULL, (void*)thread1, &loops);
-	pthread_create(&t2, NULL, (void*)thread2, NULL);
+	pthread_create(&t2, NULL, (void*)threadx, (void*)1);
+	pthread_create(&t3, NULL, (void*)threadx, NULL);
 	
-	cpu = random() % N_CPUS;
+	cpu = random() % n_cpus;
 	CPU_ZERO(&cpuset);
 	CPU_SET(cpu, &cpuset);
 	sched_setaffinity(pid, sizeof(cpu_set_t), &cpuset);
-	
 	fprintf(stderr, "PID:%d CPU:%d\n", (int)pid, cpu);
 	
 	pthread_join(t1, NULL);
 	pthread_join(t2, NULL);
+	pthread_join(t3, NULL);
 	return 0;
 }
 
