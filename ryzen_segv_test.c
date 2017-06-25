@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -6,6 +8,18 @@
 #include <stdatomic.h>
 #include <pthread.h>
 #include <sys/mman.h>
+#include <sched.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+/*
+#include <sys/syscall.h>
+
+pid_t gettid(void)
+{
+    return syscall(SYS_gettid);
+}
+*/
 
 #define FUNC_BYTES (256-5)
 
@@ -110,10 +124,14 @@ void thread1(int64_t *loops)
 	int64_t i;
 	uint32_t ret1, ret2, t1, t2, should;
 	func_t pf;
+	
+	//usleep(1000);
 
 	for(i=0; i < *loops || (*loops < 0); i++) {
 		lock_enter();
 		serialize();
+		//volatile int t;
+		//for(t=0; t<1000; t++) { }
 		ret1 = func_set->ret;
 		pf = (func_t)(&func_set->func[ func_set->offset ]);
 		ret2 = pf(func_set);
@@ -143,6 +161,8 @@ void thread2(int x)
 {
 	uint8_t offset;
 	uint32_t randval;
+	
+	//usleep(1000);
 
 	while(atomic_load(&flg)) {
 		offset = random() % 256;
@@ -156,10 +176,15 @@ void thread2(int x)
 	}
 }
 
+#define MAX_CPUS 16
+
 int main(int argc, const char *argv[])
 {
 	pthread_t t1, t2;
 	int64_t loops;
+	cpu_set_t cpuset;
+	int cpu;
+	int pid = (int)getpid();
 	
 	if(argc > 1) {
 		loops = atoll(argv[1]);
@@ -171,13 +196,22 @@ int main(int argc, const char *argv[])
 
 	atomic_store(&flg, 1);
 	atomic_store(&locked, 0);
-	srandom(time(NULL));
+	
+	srandom(time(NULL) + pid);
 	func_set->offset = random() % 256;
 	func_set->ret = random();
 	memcpy(&func_set->func[func_set->offset], func_base, FUNC_BYTES);
 	memset(&func_set->dummy, 0x00, 64);
 	pthread_create(&t1, NULL, (void*)thread1, &loops);
 	pthread_create(&t2, NULL, (void*)thread2, NULL);
+	
+	cpu = random() % MAX_CPUS;
+	CPU_ZERO(&cpuset);
+	CPU_SET(cpu, &cpuset);
+	sched_setaffinity((pid_t)pid, sizeof(cpu_set_t), &cpuset);
+	
+	fprintf(stderr, "PID:%d CPU:%d\n", pid, cpu);
+	
 	pthread_join(t1, NULL);
 	pthread_join(t2, NULL);
 	return 0;
