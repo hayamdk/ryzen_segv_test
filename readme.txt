@@ -1,9 +1,5 @@
-**** !!!! Warning !!!! *****
-**** Currently, this dosen't cause SEGV in RYZEN no longer ****
-
-
-
 About:
+
 This is a test code to reproduce SEGV of RYZEN processor.
 
 
@@ -28,7 +24,7 @@ It works with gcc on Linux.
 # make
 # ./run.sh [n] [m]
 ---
-n: Number of concurrent execution (e.g. 1)
-m: Loop count (e.g. 25000000)
+n: Number of concurrent execution (e.g. 8)
+m: Loop count (e.g. 2500000)
 
 Output log is in log.txt.
