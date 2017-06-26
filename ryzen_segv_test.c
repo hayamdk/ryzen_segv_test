@@ -178,6 +178,10 @@ void threadx(void *p)
 		if(!init) {
 			lock_enter();
 		} else {
+			if(func_set == MAP_FAILED) {
+				fprintf(stderr, "mmap returns MAP_FAILED!\n");
+				return;
+			}
 			init = 0;
 		}
 		memset(func_set, 0, sizeof(func_set_t));
