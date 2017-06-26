@@ -133,6 +133,7 @@ void thread1(int64_t *loops)
 	for(i=0; i < *loops || (*loops < 0); i++) {
 		lock_enter();
 		serialize();
+		mfence();
 		//volatile int t;
 		//for(t=0; t<1000; t++) { }
 		ret1 = func_set->ret;
