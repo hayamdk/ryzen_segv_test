@@ -5,12 +5,68 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <time.h>
+
+#ifdef _MSC_VER
+
+#include <Windows.h>
+#include <intrin.h>
+#include <process.h>
+
+typedef volatile long atomic_int;
+typedef int pid_t;
+typedef HANDLE pthread_t;
+#define getpid	my_getpid
+#define MAP_FAILED (NULL)
+
+static int atomic_exchange(atomic_int *ptr, int val)
+{
+	return (int)_InterlockedExchange(ptr, (long)val);
+}
+
+static void atomic_store(atomic_int *ptr, int val)
+{
+	*ptr = (long)val;
+}
+
+static int atomic_load(atomic_int *ptr)
+{
+	return (int)*ptr;
+}
+
+static pid_t my_getpid()
+{
+	return _getpid();
+}
+
+int pthread_create(pthread_t *thread, void *dummy, LPTHREAD_START_ROUTINE func, void *param)
+{
+	DWORD tid;
+	HANDLE h;
+	h = CreateThread(NULL, 0, func, param, 0, &tid);
+	if (h == NULL) {
+		return 0;
+	}
+	*thread = h;
+	return 1;
+}
+
+int pthread_join(pthread_t thread, void **retval)
+{
+	WaitForSingleObject(thread, INFINITE);
+	CloseHandle(thread);
+	return 0;
+}
+
+#else
+
 #include <stdatomic.h>
 #include <pthread.h>
 #include <sys/mman.h>
 #include <sched.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#endif
 
 /*
 #include <sys/syscall.h>
@@ -35,7 +91,30 @@ typedef struct {
 		(y) = (y) ^ ((y) << 5); \
 } while(0)
 
-typedef uint32_t (*func_t)(func_set_t*, ...);
+#ifdef _MSC_VER
+
+uint32_t randseed;
+__declspec(thread) int randinited = 0;
+__declspec(thread) uint32_t randval;
+
+void srandom(uint32_t seed)
+{
+	randseed = seed;
+}
+
+uint32_t random()
+{
+	if (!randinited) {
+		randinited = 1;
+		randval = randseed;
+	}
+	RAND_STEP(randval);
+	return randval;
+}
+
+#endif
+
+typedef uint32_t (*func_t)(func_set_t*);
 
 //func_set_t func_set;
 func_set_t *func_set;
@@ -62,18 +141,29 @@ static void lock_leave()
 
 static void mfence()
 {
+#ifdef _MSC_VER
+	_mm_mfence();
+#else
 	asm volatile("mfence":::"memory");
+#endif
 }
 
 static void serialize()
 {
+#ifdef _MSC_VER
+	int t[4];
+	__cpuid(t, 0);
+#else
 	unsigned int t[4];
 	asm volatile ("cpuid"
 			:"=a"(t[0]), "=b"(t[1]), "=c"(t[2]), "=d"(t[3])
 			: "0" (0) );
+#endif
 }
 
-/*
+
+#ifdef _MSC_VER
+
 uint32_t func_base(func_set_t *p)
 {
 	uint32_t t1 = p->ret, t2 = 12345;
@@ -88,7 +178,8 @@ uint32_t func_base(func_set_t *p)
 	RAND_STEP(t1);
 	return t1;
 }
-*/
+
+#else
 
 /* compiled x86_64 binary of above func_base */
 uint8_t func_base[FUNC_BYTES] = {
@@ -122,6 +213,9 @@ uint8_t func_base[FUNC_BYTES] = {
 	/*afd:*/ 0x0f, 0x1f, 0x00,                   //nopl   (%rax)
 };
 
+#endif
+
+
 void thread1(int64_t *loops)
 {
 	int64_t i;
@@ -132,8 +226,8 @@ void thread1(int64_t *loops)
 
 	for(i=0; i < *loops || (*loops < 0); i++) {
 		lock_enter();
-		serialize();
 		mfence();
+		serialize();
 		//volatile int t;
 		//for(t=0; t<1000; t++) { }
 		ret1 = func_set->ret;
@@ -142,7 +236,7 @@ void thread1(int64_t *loops)
 		lock_leave();
 
 		t1 = ret1, t2 = 12345;
-	        RAND_STEP(t1);
+		RAND_STEP(t1);
 		RAND_STEP(t2);
 		if(t1 < t2) {
 			t1 ^= t2;
@@ -197,10 +291,13 @@ int n_cpus = 16;
 
 int main(int argc, const char *argv[])
 {
-	pthread_t t1, t2, t3;
 	int64_t loops;
+	pthread_t t1, t2, t3;
+#ifdef _MSC_VER
+#else
 	cpu_set_t cpuset;
 	int cpu;
+#endif
 	pid_t pid = getpid();
 	
 	if(argc > 1) {
@@ -208,10 +305,13 @@ int main(int argc, const char *argv[])
 	} else {
 		loops = -1;
 	}
-	
-	n_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
+#ifdef _MSC_VER
+	func_set = VirtualAlloc(NULL, sizeof(func_set_t), MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+#else
+	n_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	func_set = mmap (NULL, sizeof(func_set_t), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+#endif
 
 	atomic_store(&flg, 1);
 	atomic_store(&locked, 1);
@@ -222,11 +322,14 @@ int main(int argc, const char *argv[])
 	pthread_create(&t2, NULL, (void*)threadx, (void*)1);
 	pthread_create(&t3, NULL, (void*)threadx, NULL);
 	
+#ifdef _MSC_VER
+#else
 	cpu = random() % n_cpus;
 	CPU_ZERO(&cpuset);
 	CPU_SET(cpu, &cpuset);
 	sched_setaffinity(pid, sizeof(cpu_set_t), &cpuset);
 	fprintf(stderr, "PID:%d CPU:%d\n", (int)pid, cpu);
+#endif
 	
 	pthread_join(t1, NULL);
 	pthread_join(t2, NULL);
