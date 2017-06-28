@@ -161,9 +161,7 @@ static void serialize()
 #endif
 }
 
-
-#ifdef _MSC_VER
-
+/*
 uint32_t func_base(func_set_t *p)
 {
 	uint32_t t1 = p->ret, t2 = 12345;
@@ -178,6 +176,38 @@ uint32_t func_base(func_set_t *p)
 	RAND_STEP(t1);
 	return t1;
 }
+*/
+
+#ifdef _MSC_VER
+
+/* compiled x86_64 binary of above func_base (for MSVC) */
+uint8_t func_base[FUNC_BYTES] = {
+	/*1060*/ 0x8b, 0x91, 0x3c, 0x02, 0x00, 0x00, //mov    0x23c(%rcx),%edx
+	/*1066*/ 0x8b, 0xc2,                         //mov    %edx,%eax
+	/*1068*/ 0xc1, 0xe0, 0x0d,                   //shl    $0xd,%eax
+	/*106b*/ 0x33, 0xd0,                         //xor    %eax,%edx
+	/*106d*/ 0x8b, 0xc2,                         //mov    %edx,%eax
+	/*106f*/ 0xc1, 0xe8, 0x11,                   //shr    $0x11,%eax
+	/*1072*/ 0x33, 0xd0,                         //xor    %eax,%edx
+	/*1074*/ 0x8b, 0xc2,                         //mov    %edx,%eax
+	/*1076*/ 0xc1, 0xe0, 0x05,                   //shl    $0x5,%eax
+	/*1079*/ 0x33, 0xd0,                         //xor    %eax,%edx
+	/*107b*/ 0x81, 0xfa, 0x7a, 0x74, 0xe5, 0xc6, //cmp    $0xc6e5747a,%edx
+	/*1081*/ 0x73, 0x1c,                         //jae    109f
+	/*1083*/ 0x81, 0xf2, 0x7a, 0x74, 0xe5, 0xc6, //xor    $0xc6e5747a,%edx
+	/*1089*/ 0x8b, 0xc2,                         //mov    %edx,%eax
+	/*108b*/ 0xc1, 0xe0, 0x0d,                   //shl    $0xd,%eax
+	/*108e*/ 0x33, 0xd0,                         //xor    %eax,%edx
+	/*1090*/ 0x8b, 0xc2,                         //mov    %edx,%eax
+	/*1092*/ 0xc1, 0xe8, 0x11,                   //shr    $0x11,%eax
+	/*1095*/ 0x33, 0xd0,                         //xor    %eax,%edx
+	/*1097*/ 0x8b, 0xc2,                         //mov    %edx,%eax
+	/*1099*/ 0xc1, 0xe0, 0x05,                   //shl    $0x5,%eax
+	/*109c*/ 0x33, 0xc2,                         //xor    %edx,%eax
+	/*109e*/ 0xc3,                               //retq
+	/*109f*/ 0x8d, 0x82, 0xaf, 0x09, 0x2a, 0x65, //lea    0x652a09af(%rdx),%eax
+	/*10a5*/ 0xc3,                               //retq
+};
 
 #else
 
