@@ -1,11 +1,12 @@
 PROGRAM = ryzen_segv_test
-CFLAGS = -O2 -Wall
+CFLAGS = -O2 -Wall -fpie
+LDFLAGS = -pie
 CC = cc
 SRCS = ryzen_segv_test.c
 OBJS = $(SRCS:.c=.o)
 
 $(PROGRAM): $(OBJS)
-	$(CC) -pthread -o $(PROGRAM) $(OBJS)
+	$(CC) -pthread -o $(PROGRAM) $(LDFLAGS) $(OBJS)
 
 #SUFFIXES: .o .c
 .c.o:
