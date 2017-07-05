@@ -130,7 +130,7 @@ static void lock_enter()
 	while( atomic_exchange(&locked,1) ) { }
 }
 
-static void lock_leave()
+static __attribute__((noinline)) void lock_leave()
 {
 	int ret = atomic_exchange(&locked,0);
 	if(!ret) {
@@ -317,7 +317,14 @@ void threadx(void *p)
 	}
 }
 
-int n_cpus = 16;
+void main_loop()
+{
+	volatile int t;
+	while(atomic_load(&flg)) {
+		usleep(random()%5000);
+		for(t=0; t<random()%100; t++) {}
+	}
+}
 
 int main(int argc, const char *argv[])
 {
@@ -325,6 +332,7 @@ int main(int argc, const char *argv[])
 	pthread_t t1, t2, t3;
 #ifdef _MSC_VER
 #else
+	int n_cpus = 16;
 	cpu_set_t cpuset;
 	int cpu;
 #endif
@@ -359,6 +367,8 @@ int main(int argc, const char *argv[])
 	CPU_SET(cpu, &cpuset);
 	sched_setaffinity(pid, sizeof(cpu_set_t), &cpuset);
 	fprintf(stderr, "PID:%d CPU:%d\n", (int)pid, cpu);
+	
+	main_loop();
 #endif
 	
 	pthread_join(t1, NULL);
