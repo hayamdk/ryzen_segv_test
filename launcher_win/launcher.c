@@ -95,6 +95,7 @@ void exec()
 			sets[i].alive = 1;
 			sets[i].process = pi.hProcess;
 			sets[i].count = total++;
+			CloseHandle(pi.hThread);
 		} else {
 			printerr(L"CreateProcess");
 			others++;
@@ -120,6 +121,7 @@ void check()
 	} else if(ret >= WAIT_OBJECT_0 && ret < WAIT_OBJECT_0 + j) {
 		exitchild = ret - WAIT_OBJECT_0;
 		GetExitCodeProcess(sets[exitchild].process, &childret);
+		CloseHandle(sets[exitchild].process);
 		if (childret == 0) {
 			ok++;
 			printlog(L"%d: OK", sets[exitchild].count);
