@@ -32,6 +32,7 @@ void printlog(const WCHAR *fmt, ...)
 	_vsnwprintf(msg, 1024, fmt, list);
 	fwprintf(fp, L"%04d/%02d/%02d %02d:%02d:%02d %s\n", 
 		tm.wYear, tm.wMonth, tm.wDay, tm.wHour, tm.wMinute, tm.wSecond, msg);
+	va_end(list);
 }
 
 void printerr(const WCHAR *msg1)
