@@ -12,6 +12,11 @@
 #include <intrin.h>
 #include <process.h>
 
+//Note: Normally, volatile qualifier is not suitable for ensuring multithread atomicity,
+//       but below definition works properly specially in x86 MSVC.
+//See: https://msdn.microsoft.com/library/12a04hfd.aspx#Anchor_4
+//See: https://msdn.microsoft.com/library/1s26w950.aspx
+
 typedef volatile long atomic_int;
 typedef int pid_t;
 typedef HANDLE pthread_t;
@@ -256,6 +261,7 @@ void thread1(int64_t *loops)
 
 	for(i=0; i < *loops || (*loops < 0); i++) {
 		lock_enter();
+		// You should confirm assembly of generated code, just in case the compiler reorders mfence/cpuid instruction.
 		mfence();
 		serialize();
 		//volatile int t;
@@ -312,6 +318,7 @@ void threadx(void *p)
 		memcpy(&func_set->func[offset], func_base, FUNC_BYTES);
 		func_set->offset = offset;
 		func_set->ret = randval;
+		// You should confirm assembly of generated code, just in case the compiler reorders mfence instruction
 		mfence(); // Assure that modified code is stored
 		lock_leave();
 	}
@@ -347,7 +354,8 @@ int main(int argc, const char *argv[])
 	atomic_store(&locked, 1);
 	
 	srandom(time(NULL) + pid);
-	mfence(); // Assure that modified code is stored
+	// You should confirm assembly of generated code, just in case the compiler reorders mfence instruction
+	mfence(); // Assure that flags are stored properly
 	pthread_create(&t1, NULL, (void*)thread1, &loops);
 	pthread_create(&t2, NULL, (void*)threadx, (void*)1);
 	pthread_create(&t3, NULL, (void*)threadx, NULL);
