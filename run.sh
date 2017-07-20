@@ -1,4 +1,4 @@
 #!/bin/sh
 
-seq 1 $1 | xargs -n 1 -P $1 ./run1.sh "$2"
+seq 0 $((${1}-1)) | xargs -n 1 -P $1 -I CPU taskset -c CPU ./run1.sh $2
 
