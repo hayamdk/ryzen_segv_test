@@ -308,7 +308,6 @@ void threadx(void *p)
 {
 	uint8_t offset;
 	uint32_t randval;
-	int init = 0;
 	
 	//usleep(1000);
 
