@@ -291,29 +291,31 @@ void thread1(int64_t *loops)
 	atomic_store(&flg, 0);
 }
 
+void threadx_core()
+{
+	uint8_t offset;
+	uint32_t randval;
+
+	offset = random() % 256;
+	randval = random();
+	memset(func_set, 0, sizeof(func_set_t));
+	memcpy(&func_set->func[offset], func_base, FUNC_BYTES);
+	func_set->offset = offset;
+	func_set->ret = randval;
+}
+
 void threadx(void *p)
 {
 	uint8_t offset;
 	uint32_t randval;
-	int init = 0;
-	if(p != NULL) {
-		init = 1;
-	}
 	
 	//usleep(1000);
 
 	while(atomic_load(&flg)) {
 		offset = random() % 256;
 		randval = random();
-		if(!init) {
-			lock_enter();
-		} else {
-			if(func_set == MAP_FAILED) {
-				fprintf(stderr, "mmap returns MAP_FAILED!\n");
-				return;
-			}
-			init = 0;
-		}
+		lock_enter();
+		// threadx_core();
 		memset(func_set, 0, sizeof(func_set_t));
 		memcpy(&func_set->func[offset], func_base, FUNC_BYTES);
 		func_set->offset = offset;
@@ -330,8 +332,7 @@ int main(int argc, const char *argv[])
 {
 	int64_t loops;
 	pthread_t t1, t2, t3;
-#ifdef _MSC_VER
-#else
+#if !defined(_MSC_VER) && !defined(__FreeBSD__)
 	cpu_set_t cpuset;
 	int cpu;
 #endif
@@ -349,19 +350,23 @@ int main(int argc, const char *argv[])
 	n_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	func_set = mmap (NULL, sizeof(func_set_t), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 #endif
+	if(func_set == MAP_FAILED) {
+		fprintf(stderr, "mmap returns MAP_FAILED!\n");
+		exit (1);
+	}
 
 	atomic_store(&flg, 1);
 	atomic_store(&locked, 1);
 	
 	srandom(time(NULL) + pid);
 	// You should confirm assembly of generated code, just in case the compiler reorders mfence instruction
+	threadx_core();
 	mfence(); // Assure that flags are stored properly
 	pthread_create(&t1, NULL, (void*)thread1, &loops);
-	pthread_create(&t2, NULL, (void*)threadx, (void*)1);
+	pthread_create(&t2, NULL, (void*)threadx, NULL);
 	pthread_create(&t3, NULL, (void*)threadx, NULL);
 	
-#ifdef _MSC_VER
-#else
+#if !defined(_MSC_VER) && !defined(__FreeBSD__)
 	cpu = random() % n_cpus;
 	CPU_ZERO(&cpuset);
 	CPU_SET(cpu, &cpuset);
