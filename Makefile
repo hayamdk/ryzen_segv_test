@@ -1,17 +1,24 @@
 PROGRAM = ryzen_segv_test
 CFLAGS = -O2 -Wall
 CC = cc
-SRCS = ryzen_segv_test.c
-OBJS = $(SRCS:.c=.o)
+AS = as
+SRC = ryzen_segv_test.c
+OBJ = $(SRC:.c=.o)
+ASM = $(SRC:.c=.s)
 
-$(PROGRAM): $(OBJS)
-	$(CC) -pthread -o $(PROGRAM) $(OBJS)
+$(PROGRAM): $(OBJ)
+	$(CC) -pthread -o $(PROGRAM) $(OBJ)
 
-#SUFFIXES: .o .c
-.c.o:
-	$(CC) $(CFLAGS) -c $< -o $@
+%.o: %.c
+
+#SUFFIXES: .o .s
+.s.o:
+	$(AS) -o $@ $<
 
 .PHONY: clean
 clean:
-	rm -f $(PROGRAM) $(OBJS) log.txt
+	rm -f $(PROGRAM) $(OBJ) log.txt
 
+.PHONY: asm
+asm: $(SRC)
+	$(CC) $(CFLAGS) -S $(SRC)
