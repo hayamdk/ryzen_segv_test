@@ -59,6 +59,15 @@ A: 私は関係あると考えていますが、現時点では何も断言で�
 A: そうですね。可能性としては色々考えられると思います。(1)このコードのコンセプトに不備がある、(2)ハードの不調、(3)OSやコンパイラのバグ、(4)3770K等に未修正のバグがある、どれも否定はしきれないです（普通に考えて(1)じゃないの？と言われるでしょう）。ただ、私の所有するIntelマシンではどれもそのようなエラーは起こせていないのでなかなか詳しい調査はできずにいます（近いうちに私の環境の情報は整理してまとめます）。指摘、他の環境での報告は大歓迎ですので、よろしくお願いします。
 
 
+# 近況報告(2017/11)
+
+RMA済みのRYZENではこのテストでNGが発生しなくなるという例が報告されています(※)。
+私自身はまだ手持ちのRYZENをRMAに出せていなくて手元では確認できていません、すみません。
+
+通常のmakeではUbuntu17.04でコンパイルしたアセンブリを用いるように変更しました。Ubuntu17.04以外での再現性が上がるかもしれません（Ubuntu16.04で動作を確認）。
+
+※[ぶっちゃん！の忘備録](https://blog.jo3qma.com/2017/10/ryzensegvrma.html)、[Akihiko Otaさんのツイート](https://twitter.com/skywalker_37th/status/926426508834435072)
+
 # 作成者
 Twitter: homuh0mu
 
@@ -107,6 +116,16 @@ m: Loop count (e.g. 2500000)
 Build ryzen_segv_test and lancher with VS2017.
 Place ryzen_segv_test.exe and lancher.exe in same directory, and open lancher.exe.
 Input concurrency and loop count to command prompt.
+
+
+# Recent state (2017/11)
+
+There are some reports that a new RYZEN processor which was returned with RMA does't fail in this test (*).
+I have not done RMA yet, so I can't confirm.
+
+It use compiled assemblies which was generated on Ubuntu17.04 in normal make, so may works on other Linux.
+
+*[ぶっちゃん！の忘備録](https://blog.jo3qma.com/2017/10/ryzensegvrma.html)、[Akihiko Otaさんのツイート](https://twitter.com/skywalker_37th/status/926426508834435072)
 
 
 # Author
